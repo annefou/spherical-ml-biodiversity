@@ -13,7 +13,7 @@
 # ---
 
 # %% [markdown]
-# # 05. A real marine heatwave and the biodiversity it touched
+# # Part 5: A real marine heatwave and the biodiversity it touched
 #
 # > Why this notebook exists. Notebook 04 made the spherical-ML payoff
 # > quantitative on synthetic global SST: a flat-CNN-style detector trained at
