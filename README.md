@@ -12,7 +12,13 @@ Follow-up to [**dggs-biodiversity-bias**](https://github.com/annefou/dggs-biodiv
 
 ## Status
 
-Work in progress. Pedagogy notebooks 01–03 are committed and CI-verified; the MHW + biodiversity notebooks (04–05) and the multi-data integration notebook (06) land in subsequent commits.
+Work in progress.
+
+- **Notebooks 01–03** — pedagogy (failure mode of flat CNNs on a global raster, rotation equivariance, why HEALPix). Shipped and CI-verified.
+- **Notebook 04** — spherical-ML head-to-head on synthetic global SST. A flat lat-lon matched-filter detector trained on equator-shape MHWs collapses from 100 % accuracy in-distribution to 50 % (chance, F1 = 0) at 70–80°N, while sphere-aware HEALPix Cl features hold 71–91 % across all latitudes. Shipped.
+- **Notebook 05** — real Ningaloo-Niño-2011 marine heatwave on NOAA OISST → HEALPix substrate, with GBIF marine biodiversity overlay. Shipped.
+- **Notebook 06** — cross-discipline spherical-ML transfer: a sphere-aware model trained in one discipline (astrophysics, where the HEALPix ML stack is most mature) applied without retraining to a climate / biodiversity task on the same HEALPix substrate, vs a flat baseline trained from scratch. The *positive* spherical-ML payoff complementing notebook 04's failure-mode demo. Forthcoming.
+- **FORRT chain** + **Research Software nanopub** — to be published once the worked example is complete.
 
 ## License
 

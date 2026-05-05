@@ -13,6 +13,12 @@ dependencies:
   - nbclient
   - ipykernel
   - jupyter
+  - xarray=2025.4
+  - netcdf4
+  - dask
+  - pandas
+  - cftime
   - pip:
       - zenodo-get
       - h3
+      - pygbif

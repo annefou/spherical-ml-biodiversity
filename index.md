@@ -18,7 +18,12 @@ Three pedagogy notebooks shipped today:
 2. **{doc}`Rotation equivariance — what spherical CNNs preserve <notebooks/02_rotation_equivariance>`** — quantitative demos: rotation on the sphere is not translation on the raster (50.6% pixel disagreement at 60°N), and an "equator-cap detector" matched filter fails on the same physical feature at higher latitudes (100% → 55% peak response collapse from 0°N → 80°N). Closes with what a spherical CNN does differently and where the technique genuinely shines vs where it doesn't.
 3. **{doc}`Why HEALPix is the right substrate for spherical ML <notebooks/03_why_healpix>`** — four properties: equal-area cells, iso-latitude rings (vs H3 hexagonal which breaks them), NESTED bit-shift hierarchical refinement (parent = `pix >> 2` verified against `healpy`), and graph structure for DeepSphere-style graph CNNs. Closes with the spherical-ML ecosystem that lives on HEALPix: `healpy`, `healpix-geo` (GRID4EARTH path), DeepSphere, DLWP-HEALPix, `foscat` (FIESTA), DISCO.
 
-Notebooks 04–08 are forthcoming.
+Notebooks 04 and 05 are also shipped:
+
+4. **{doc}`Spherical-ML head-to-head on synthetic global SST <notebooks/04_mhw_detection_copernicus_marine>`** — both pipelines train on samples with marine-heatwave caps only at |lat| ≤ 20° and test at four latitude bands. The flat lat-lon matched-filter baseline collapses from 100 % accuracy in-distribution to 50 % (chance, F1 = 0) at 70–80°N because the spherical-cap shape distorts under the lat-lon projection. The sphere-aware HEALPix `Cl` features hold 71–91 % across all latitudes.
+5. **{doc}`A real marine heatwave and the biodiversity it touched <notebooks/05_real_mhw_and_biodiversity>`** — the documented 2011 Western Australian "Ningaloo Niño" MHW (Wernberg et al. 2016) on NOAA OISST v2.1, projected onto the same HEALPix-NESTED substrate. GBIF marine biodiversity occurrences from 2011 in the same region are overlaid on the MHW footprint to count cell-level exposure. Demonstrates that the spherical substrate carries the climate signal and the biodiversity signal together — without re-projecting onto a distorting lat-lon raster in the process.
+
+Notebook 06 (cross-discipline transfer demonstration: a sphere-aware model trained in one discipline applied without retraining to another on the same HEALPix substrate) is forthcoming.
 
 ## Connection to ESA GRID4EARTH
 

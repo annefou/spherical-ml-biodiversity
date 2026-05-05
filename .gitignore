@@ -7,9 +7,12 @@ notebooks/*.ipynb
 
 # Data downloaded by notebooks at first run.
 # Specific cached files committed below are exceptions.
-data/*.nc
-data/*.zarr
-data/*.h5
+data/**/*.nc
+data/**/*.zarr
+data/**/*.h5
+
+# Snakemake working directory
+.snakemake/
 
 # Python
 __pycache__/

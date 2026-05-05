@@ -13,6 +13,8 @@ project:
     - file: notebooks/01_flat_cnn_failure_mode.ipynb
     - file: notebooks/02_rotation_equivariance.ipynb
     - file: notebooks/03_why_healpix.ipynb
+    - file: notebooks/04_mhw_detection_copernicus_marine.ipynb
+    - file: notebooks/05_real_mhw_and_biodiversity.ipynb
 
 site:
   title: "spherical-ml-biodiversity"
