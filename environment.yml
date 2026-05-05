@@ -1,0 +1,16 @@
+name: spherical-ml-biodiversity
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy=2.2
+  - healpy=1.18
+  - cartopy=0.24
+  - matplotlib=3.10
+  - pyproj
+  - jupytext
+  - nbclient
+  - ipykernel
+  - jupyter
+  - pip:
+      - zenodo-get

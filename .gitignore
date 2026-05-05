@@ -1,0 +1,24 @@
+# Build
+_build/
+node_modules/
+
+# Notebooks (generated from .py via jupytext)
+notebooks/*.ipynb
+
+# Data downloaded by notebooks at first run.
+# Specific cached files committed below are exceptions.
+data/*.nc
+data/*.zarr
+data/*.h5
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+
+# Compressed archives
+*.7z
+*.tar.gz
