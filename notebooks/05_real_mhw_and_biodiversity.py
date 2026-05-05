@@ -243,21 +243,38 @@ print(f"HEALPix cells with MHW exposure (≥1 day mean): "
 # ## 5. Visualise the MHW footprint on HEALPix
 
 # %%
-m_for_plot = np.where(np.isnan(mhw_days_hp), 0.0, mhw_days_hp)
-hp.cartview(
-    m_for_plot,
-    nest=True,
-    lonra=[105, 122],
-    latra=[-37, -18],
-    title=f"Western Australian Ningaloo Niño 2011 — MHW-days per HEALPix cell\n(NSIDE={NSIDE}, NESTED, anomaly > {ANOMALY_THRESHOLD_C} °C, ≥{MIN_PERSISTENCE_DAYS} consecutive days)",
-    cmap="hot_r",
-    min=0, max=float(np.nanmax(mhw_days_hp)),
-    unit="MHW-days (Jan–Apr 2011)",
-    cbar=True,
-)
-plt.gcf().set_size_inches(10, 6)
-plt.savefig(IMG_DIR / "mhw_healpix_western_australia_2011.png",
-            dpi=120, bbox_inches="tight")
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+
+# Render the HEALPix-aggregated MHW field on a high-resolution lat-lon
+# grid through `hp.ang2pix`, then pcolormesh it on a cartopy axis so
+# coastlines and gridlines come through.
+LATS_HD = np.linspace(-37, -18, 240)
+LONS_HD = np.linspace(105, 122, 240)
+LAT_HD, LON_HD = np.meshgrid(LATS_HD, LONS_HD, indexing="ij")
+theta_hd = np.deg2rad(90.0 - LAT_HD)
+phi_hd = np.deg2rad(LON_HD % 360.0)
+hp_idx_hd = hp.ang2pix(NSIDE, theta_hd, phi_hd, nest=True)
+mhw_field_hd = mhw_days_hp[hp_idx_hd]
+mhw_field_hd = np.where(np.isnan(mhw_field_hd) | (mhw_field_hd == 0), np.nan, mhw_field_hd)
+
+fig = plt.figure(figsize=(10, 6))
+ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
+ax.set_extent([105, 122, -37, -18], crs=ccrs.PlateCarree())
+ax.add_feature(cfeature.LAND, facecolor="#dddddd", zorder=1)
+ax.add_feature(cfeature.COASTLINE, linewidth=0.6, zorder=3)
+ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
+cmesh = ax.pcolormesh(LON_HD, LAT_HD, mhw_field_hd,
+                       cmap="hot_r", shading="auto", vmin=0,
+                       vmax=float(np.nanmax(mhw_days_hp)),
+                       transform=ccrs.PlateCarree(), zorder=2)
+plt.colorbar(cmesh, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
+             label="MHW-days, Jan–Apr 2011")
+ax.set_title(f"Western Australian Ningaloo Niño 2011 — MHW-days per HEALPix cell\n"
+             f"(NSIDE={NSIDE}, NESTED, anomaly > {ANOMALY_THRESHOLD_C} °C, ≥{MIN_PERSISTENCE_DAYS} consecutive days)",
+             fontsize=10)
+fig.savefig(IMG_DIR / "mhw_healpix_western_australia_2011.png",
+            dpi=130, bbox_inches="tight")
 plt.show()
 
 # %% [markdown]

@@ -18,6 +18,7 @@ dependencies:
   - dask
   - pandas
   - cftime
+  - scikit-learn
   - pip:
       - zenodo-get
       - h3
