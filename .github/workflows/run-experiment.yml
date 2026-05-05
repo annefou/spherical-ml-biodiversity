@@ -1,0 +1,43 @@
+name: Run experiment (CI smoke)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: environment.yml
+          environment-name: spherical-ml-biodiversity
+          init-shell: bash
+          cache-environment: true
+
+      - name: Convert .py notebooks to .ipynb
+        shell: micromamba-shell {0}
+        run: |
+          for nb in notebooks/*.py; do
+            jupytext --to notebook "$nb"
+          done
+
+      - name: Execute pedagogy notebooks
+        shell: micromamba-shell {0}
+        run: |
+          for nb in notebooks/01_flat_cnn_failure_mode.ipynb \
+                   notebooks/02_rotation_equivariance.ipynb \
+                   notebooks/03_why_healpix.ipynb; do
+            jupyter execute --inplace "$nb"
+          done
+
+      - name: Upload generated figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: figures
+          path: images/

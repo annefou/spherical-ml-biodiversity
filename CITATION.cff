@@ -1,0 +1,132 @@
+cff-version: 1.2.0
+title: "spherical-ml-biodiversity — what spherical ML is, why it matters, and a worked replication on Copernicus data tied to biodiversity"
+message: >-
+  If you use this software, please cite this repository together with
+  the foundational HEALPix and spherical-CNN references and the
+  related dggs-biodiversity-bias repository it follows up.
+type: software
+version: "0.1.0-dev"
+authors:
+  - given-names: Anne
+    family-names: Fouilloux
+    orcid: "https://orcid.org/0000-0002-1784-2920"
+    affiliation: LifeWatch ERIC
+repository-code: "https://github.com/annefou/spherical-ml-biodiversity"
+license: MIT
+date-released: "2026-05-05"
+keywords:
+  - spherical machine learning
+  - geometric deep learning
+  - rotation equivariance
+  - HEALPix
+  - DGGS
+  - DeepSphere
+  - DLWP-HEALPix
+  - foscat
+  - scattering networks
+  - sphere-harmonic transforms
+  - atmospheric rivers
+  - marine heatwaves
+  - biodiversity
+  - climate-driven biodiversity
+  - Copernicus
+  - Destination Earth
+  - GRID4EARTH
+  - ellipsoidal HEALPix
+  - FAIR
+  - reproducible research
+references:
+  - type: article
+    title: "HEALPix: A Framework for High-Resolution Discretization and Fast Analysis of Data Distributed on the Sphere"
+    authors:
+      - given-names: K. M.
+        family-names: Górski
+      - given-names: E.
+        family-names: Hivon
+      - given-names: A. J.
+        family-names: Banday
+      - given-names: B. D.
+        family-names: Wandelt
+      - given-names: F. K.
+        family-names: Hansen
+      - given-names: M.
+        family-names: Reinecke
+      - given-names: M.
+        family-names: Bartelmann
+    journal: "The Astrophysical Journal"
+    volume: 622
+    pages: 759-771
+    year: 2005
+    doi: "10.1086/427976"
+  - type: article
+    title: "Spherical CNNs"
+    authors:
+      - given-names: Taco S.
+        family-names: Cohen
+      - given-names: Mario
+        family-names: Geiger
+      - given-names: Jonas
+        family-names: Köhler
+      - given-names: Max
+        family-names: Welling
+    conference: "International Conference on Learning Representations (ICLR)"
+    year: 2018
+    notes: "arXiv:1801.10130"
+  - type: article
+    title: "DeepSphere: a graph-based spherical CNN"
+    authors:
+      - given-names: Michaël
+        family-names: Defferrard
+      - given-names: Martino
+        family-names: Milani
+      - given-names: Frédérick
+        family-names: Gusset
+      - given-names: Nathanaël
+        family-names: Perraudin
+    year: 2020
+    notes: "ICLR Workshop, arXiv:2012.15000"
+  - type: article
+    title: "Advancing parsimonious deep learning weather prediction using HEALPix"
+    authors:
+      - given-names: Matthias
+        family-names: Karlbauer
+      - given-names: Nathaniel
+        family-names: Cresswell-Clay
+      - given-names: Dale R.
+        family-names: Durran
+      - given-names: Raul A.
+        family-names: Moreno
+      - given-names: Thorsten
+        family-names: Kurth
+      - given-names: Boris
+        family-names: Bonev
+      - given-names: Noah
+        family-names: Brenowitz
+      - given-names: Martin V.
+        family-names: Butz
+    journal: "Journal of Advances in Modeling Earth Systems"
+    year: 2024
+    doi: "10.1029/2023MS004021"
+  - type: article
+    title: "DeepSphere: efficient spherical convolutional neural network with HEALPix sampling for cosmological applications"
+    authors:
+      - given-names: Nathanaël
+        family-names: Perraudin
+      - given-names: Michaël
+        family-names: Defferrard
+      - given-names: Tomasz
+        family-names: Kacprzak
+      - given-names: Raphael
+        family-names: Sgier
+    journal: "Astronomy and Computing"
+    year: 2019
+    doi: "10.1016/j.ascom.2019.03.004"
+  - type: software
+    title: "dggs-biodiversity-bias — a common DGGS for the integration of biodiversity with Copernicus EO and Destination Earth climate models"
+    authors:
+      - given-names: Anne
+        family-names: Fouilloux
+        orcid: "https://orcid.org/0000-0002-1784-2920"
+    repository-code: "https://github.com/annefou/dggs-biodiversity-bias"
+    year: 2026
+    doi: "10.5281/zenodo.19848749"

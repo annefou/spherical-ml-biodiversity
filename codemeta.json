@@ -1,0 +1,90 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "version": "0.1.0-dev",
+  "name": "spherical-ml-biodiversity — what spherical ML is, why it matters, and a worked replication on Copernicus data tied to biodiversity",
+  "description": "Pedagogical and supporting-evidence repository operationalising the spherical-ML claim from dggs-biodiversity-bias. Three pedagogy notebooks demonstrate (01) the failure mode of flat CNNs on global lat-lon rasters, (02) rotation equivariance — what spherical CNNs preserve and flat CNNs don't, with quantitative demos showing 50.6% pixel disagreement when treating rotation as translation and 100% to 55% peak-response collapse of an equator-cap detector across latitudes, and (03) why HEALPix is the right substrate for spherical ML — equal-area cells + iso-latitude rings + NESTED bit-shift hierarchical refinement + graph structure for DeepSphere-style graph CNNs. Forthcoming notebooks 04 to 08 will replicate Defferrard et al. 2020 DeepSphere atmospheric-river detection on ERA5 Copernicus C3S, add marine-heatwave detection on Copernicus Marine SST, tie both to biodiversity-impact literature (riparian Annex I habitats for ARs; coral / kelp / fish for marine heatwaves), and stack everything on the common HEALPix substrate. This is the spherical-ML side of the ESA GRID4EARTH case for Ellipsoidal HEALPix as a Common DGGS bridging Copernicus EO and Destination Earth.",
+  "license": "https://spdx.org/licenses/MIT",
+  "codeRepository": "https://github.com/annefou/spherical-ml-biodiversity",
+  "dateCreated": "2026-05-05",
+  "dateModified": "2026-05-05",
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python 3.11",
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Anne",
+      "familyName": "Fouilloux",
+      "@id": "https://orcid.org/0000-0002-1784-2920",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "LifeWatch ERIC"
+      }
+    }
+  ],
+  "referencePublication": [
+    {
+      "@type": "ScholarlyArticle",
+      "name": "HEALPix: A Framework for High-Resolution Discretization and Fast Analysis of Data Distributed on the Sphere",
+      "datePublished": "2005",
+      "identifier": "https://doi.org/10.1086/427976"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "Spherical CNNs",
+      "datePublished": "2018",
+      "identifier": "https://arxiv.org/abs/1801.10130"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "DeepSphere: a graph-based spherical CNN",
+      "datePublished": "2020",
+      "identifier": "https://arxiv.org/abs/2012.15000"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "DeepSphere: efficient spherical convolutional neural network with HEALPix sampling for cosmological applications",
+      "datePublished": "2019",
+      "identifier": "https://doi.org/10.1016/j.ascom.2019.03.004"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "Advancing parsimonious deep learning weather prediction using HEALPix",
+      "datePublished": "2024",
+      "identifier": "https://doi.org/10.1029/2023MS004021"
+    }
+  ],
+  "isPartOf": [
+    { "@type": "SoftwareApplication", "name": "Science Live",  "url": "https://platform.sciencelive4all.org" },
+    { "@type": "Project",             "name": "ESA GRID4EARTH", "url": "https://www.grid4earth.eu" }
+  ],
+  "isBasedOn": [
+    {
+      "@type": "SoftwareSourceCode",
+      "name": "dggs-biodiversity-bias — a common DGGS for the integration of biodiversity with Copernicus EO and Destination Earth climate models",
+      "identifier": "https://doi.org/10.5281/zenodo.19848749"
+    }
+  ],
+  "keywords": [
+    "spherical machine learning",
+    "geometric deep learning",
+    "rotation equivariance",
+    "HEALPix",
+    "DGGS",
+    "DeepSphere",
+    "DLWP-HEALPix",
+    "foscat",
+    "scattering networks",
+    "sphere-harmonic transforms",
+    "atmospheric rivers",
+    "marine heatwaves",
+    "biodiversity",
+    "climate-driven biodiversity",
+    "Copernicus",
+    "Destination Earth",
+    "GRID4EARTH",
+    "ellipsoidal HEALPix",
+    "FAIR",
+    "reproducible research"
+  ]
+}

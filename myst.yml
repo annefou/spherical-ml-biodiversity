@@ -1,0 +1,18 @@
+version: 1
+project:
+  title: "spherical-ml-biodiversity — what spherical ML is, why it matters, and a worked replication on Copernicus data tied to biodiversity"
+  authors:
+    - name: Anne Fouilloux
+      orcid: 0000-0002-1784-2920
+      affiliations:
+        - LifeWatch ERIC
+  github: https://github.com/annefou/spherical-ml-biodiversity
+  license: MIT
+  toc:
+    - file: index.md
+    - file: notebooks/01_flat_cnn_failure_mode.ipynb
+    - file: notebooks/02_rotation_equivariance.ipynb
+    - file: notebooks/03_why_healpix.ipynb
+
+site:
+  title: "spherical-ml-biodiversity"

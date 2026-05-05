@@ -7,6 +7,7 @@ dependencies:
   - healpy=1.18
   - cartopy=0.24
   - matplotlib=3.10
+  - scipy
   - pyproj
   - jupytext
   - nbclient
@@ -14,3 +15,4 @@ dependencies:
   - jupyter
   - pip:
       - zenodo-get
+      - h3
