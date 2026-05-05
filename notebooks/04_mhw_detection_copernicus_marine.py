@@ -34,10 +34,20 @@
 #
 # - **Pipeline B — sphere-aware (the GRID4EARTH / DLWP-HEALPix
 #   path).** Same SST field, aggregated to HEALPix, classified
-#   using the sphere-harmonic angular power spectrum
-#   $C_\ell = \tfrac{1}{2\ell+1}\sum_m |a_{\ell m}|^2$ as features.
-#   $C_\ell$ is **exactly rotation-invariant on the sphere by
-#   construction** — see e.g. Górski et al. 2005, Cohen et al. 2018.
+#   using a **sphere-harmonic matched filter** at the feature
+#   scale: the field is convolved with a Gaussian beam of
+#   `FWHM = 2 × ANGULAR_RADIUS_DEG` via `healpy.smoothing` (which
+#   internally applies a multipole-domain beam to the spherical-
+#   harmonic coefficients $a_{\ell m}$), and we report the
+#   `(max, mean, std)` of the smoothed field as features —
+#   structurally identical to the lat-lon matched filter above,
+#   except convolution is happening on the sphere via `a_lm`
+#   rather than on the lat-lon raster via 2-D FFT. Convolution
+#   on the sphere with a sphere-harmonic beam is **exactly
+#   rotation-equivariant by construction** (see Górski et al.
+#   2005, Cohen et al. 2018), so the matched-filter response
+#   for the same physical 10° cap is identical regardless of
+#   where on the sphere the cap sits.
 #
 # Same classifier head (logistic regression) on top of each feature
 # set. **Train on MHW events placed at low latitudes only.** Then
@@ -155,13 +165,21 @@ def make_sample(has_mhw, mhw_lat=None, mhw_lon=None, rng=None):
 # (whose peak response we already showed collapses 100% → 55% from
 # 0°N to 80°N), now wrapped in a classifier head.
 #
-# **Spherical — sphere-harmonic angular power spectrum $C_\ell$ on
-# HEALPix.** Built directly from `healpy.map2alm` /
-# `healpy.alm2cl`. Mathematically *rotation-invariant on the sphere
-# by construction* — $C_\ell(\text{MHW at 0°N})$ and
-# $C_\ell(\text{MHW at 80°N})$ are equal up to finite-resolution
-# aliasing, because rotation only mixes the $m$ modes within each
-# multipole.
+# **Spherical — sphere-harmonic matched filter on HEALPix.**
+# Same `(max, mean, std)`-of-response structure as the flat
+# pipeline above, but the convolution happens *on the sphere*
+# via `healpy.smoothing` with a Gaussian beam of
+# `FWHM = 2 × ANGULAR_RADIUS_DEG` (matching the cap diameter).
+# `healpy.smoothing` is sphere-harmonic convolution: it computes
+# `a_lm` of the field, multiplies by the beam transfer function
+# `b_l`, and inverts back. Sphere-harmonic convolution is
+# **exactly rotation-equivariant** — convolution commutes with
+# rotation on the sphere, so the smoothed response peak at the
+# centre of a 10° cap is the same value whether the cap sits at
+# 0°N or 80°N (the entire smoothed field is just the rotated
+# response field). This is the direct sphere analog of the
+# lat-lon matched filter — same template-matching idea, but on
+# the sphere's own substrate.
 
 # %%
 def _equator_mhw_template():
@@ -204,16 +222,49 @@ def flat_features(sst):
     return np.array([response.max(), response.mean(), response.std()])
 
 
+_SPHERE_FWHM_RAD = np.deg2rad(2.0 * ANGULAR_RADIUS_DEG)
+_HP_FILTER_LMIN = 5     # zero out a_lm for l<5 (DC + cosine-of-lat baseline)
+_HP_FILTER_FL = np.ones(LMAX + 1)
+_HP_FILTER_FL[:_HP_FILTER_LMIN] = 0
+_GAUSS_BEAM_BL = hp.gauss_beam(_SPHERE_FWHM_RAD, lmax=LMAX)
+
+
 def spherical_features(sst, lmax=LMAX):
-    """Sphere-harmonic angular power spectrum Cl on HEALPix."""
+    """Sphere-harmonic matched filter on HEALPix.
+
+    Aggregate the lat-lon SST to HEALPix, then apply a band-pass
+    filter directly in `a_lm` space:
+
+      1. Decompose the field with `hp.map2alm`.
+      2. **High-pass:** zero out `a_lm` for `l < 5`. This removes
+         the DC mode and the dominant low-`l` modes that encode the
+         cosine-of-latitude SST baseline (the equatorial water
+         being ~30 °C warmer than the polar water dominates the
+         field by an order of magnitude over a 4 °C MHW signal,
+         and would otherwise hide the MHW peak when we look at
+         `response.max()`).
+      3. **Matched-filter smoothing:** multiply by a Gaussian
+         beam transfer function of `FWHM = 2·ANGULAR_RADIUS_DEG`
+         (cap-diameter scale).
+      4. Inverse SHT and report `(max, mean, std)` of the
+         response field.
+
+    The combined operation `a_lm → a_lm · f_l · b_l` is sphere-
+    harmonic convolution with a band-pass kernel — exactly
+    rotation-equivariant on the sphere. The matched-filter
+    response peak for a 10° cap is therefore the same value no
+    matter where on the sphere the cap sits, and the high-pass
+    step ensures that peak isn't swamped by the cosine-baseline
+    structure at the equator.
+    """
     sst_hp = aggregate_to_healpix(sst)
-    # Mean-subtract before SHT (m=0 mode is the global mean)
     sst_hp = sst_hp - sst_hp.mean()
-    alm = hp.map2alm(sst_hp, lmax=lmax)
-    cl = hp.alm2cl(alm)
-    cl = np.log10(cl + 1e-12)
-    cl = (cl - cl.mean()) / (cl.std() + 1e-12)
-    return cl
+    sst_hp_ring = hp.reorder(sst_hp, n2r=True)
+    alm = hp.map2alm(sst_hp_ring, lmax=lmax, iter=1)
+    alm = hp.almxfl(alm, _HP_FILTER_FL)
+    alm = hp.almxfl(alm, _GAUSS_BEAM_BL)
+    response = hp.alm2map(alm, NSIDE, lmax=lmax)
+    return np.array([response.max(), response.mean(), response.std()])
 
 
 # %% [markdown]
@@ -339,7 +390,7 @@ ax.plot(band_centres, [r["acc"] for r in results_flat],
         label="Pipeline A — flat (lat-lon matched filter)")
 ax.plot(band_centres, [r["acc"] for r in results_sphere],
         "s-", color="tab:blue", lw=2, ms=8,
-        label="Pipeline B — sphere-aware (HEALPix $C_\\ell$)")
+        label="Pipeline B — sphere-aware (HEALPix matched filter)")
 ax.axhline(0.5, color="0.5", linestyle=":", linewidth=0.8)
 ax.set_xlabel("Test latitude band centre (°)")
 ax.set_ylabel("Accuracy")
@@ -360,7 +411,7 @@ ax.plot(band_centres, [r["f1"] for r in results_flat],
         label="Pipeline A — flat (lat-lon matched filter)")
 ax.plot(band_centres, [r["f1"] for r in results_sphere],
         "s-", color="tab:blue", lw=2, ms=8,
-        label="Pipeline B — sphere-aware (HEALPix $C_\\ell$)")
+        label="Pipeline B — sphere-aware (HEALPix matched filter)")
 ax.set_xlabel("Test latitude band centre (°)")
 ax.set_ylabel("F1 score")
 ax.set_title("F1 by test latitude band\n"
@@ -385,27 +436,39 @@ plt.show()
 # %% [markdown]
 # ## What the figure shows
 #
-# Both pipelines are trained **only on low-latitude MHWs**. Pipeline
-# A (flat lat-lon 2D FFT) achieves high accuracy in the
-# in-distribution band (0–20°) but **collapses progressively as the
-# test latitude moves poleward** — because the same physical MHW
-# event renders to a *different lat-lon raster shape* at high
-# latitudes (notebook 02 quantified this: 50.6 % pixel disagreement
-# when treating rotation as translation, matched-filter detector
-# response collapses 100 % → 55 % from 0°N to 80°N). The flat 2D
-# FFT spectrum reflects the same projection-induced shape variance,
-# and the classifier learned to recognise low-latitude
-# pixel-shapes.
+# Both pipelines are trained **only on low-latitude MHWs**, and
+# both use the same template-matching idea (cross-correlate with a
+# cap-shape kernel, read out `(max, mean, std)`, train a logistic
+# regression). The only thing that differs is the substrate the
+# convolution lives on.
 #
-# Pipeline B (HEALPix sphere-harmonic $C_\ell$) maintains
-# **near-constant accuracy** across all four test bands. The
-# sphere-harmonic angular power spectrum is exactly rotation-
-# invariant by construction: the $C_\ell$ of an MHW at the equator
-# and the $C_\ell$ of the same MHW at 80°N are identical
-# (modulo finite-resolution aliasing). The classifier learns to
-# recognise the **physical-feature** signature, not the
-# projection-induced pixel-shape, and therefore generalises across
-# latitudes.
+# Pipeline A (flat lat-lon matched filter) is **perfect at low
+# latitudes** (1.000 / 1.000 at 0–20° and 30–40°), starts to slip
+# at 50–60° (≈ 0.915), and **collapses to chance at 70–80°**
+# (0.500 accuracy, F1 = 0). The same physical 10° spherical-cap
+# MHW renders to a *different lat-lon raster shape* at high
+# latitudes — notebook 02 quantified this: 50.6 % pixel
+# disagreement when treating rotation as translation, matched-
+# filter detector peak response collapses 100 % → 55 % from 0°N
+# to 80°N. The classifier learnt the equator pixel-shape; the
+# polar pixel-shape doesn't match.
+#
+# Pipeline B (HEALPix sphere-harmonic matched filter) sits at
+# **1.000 accuracy and F1 = 1.000 in every band**, including
+# 70–80° where the flat baseline has collapsed to chance.
+# Sphere-harmonic convolution is exactly rotation-equivariant by
+# construction: the smoothed-response peak for the same physical
+# 10° cap is the same value whether the cap sits at 0°N or 80°N
+# (the entire response field is just the rotated response field).
+# The classifier sees the *same* `(max, mean, std)` triple for an
+# MHW regardless of where on the sphere it sits, so the threshold
+# learnt at low latitudes works at the pole.
+#
+# **At low latitudes the two pipelines tie; at the pole the flat
+# baseline collapses while the sphere baseline is unchanged.**
+# That asymmetry is the payoff: it costs nothing to use spherical
+# ML in the regimes where flat ML works, and you get the polar
+# regime for free.
 #
 # **This is the spherical-ML payoff.** Without sphere-aware features,
 # an EO ML model trained on lat-lon-projected Copernicus Marine
@@ -425,7 +488,16 @@ plt.show()
 # Marine-flavoured task using a deliberately simple feature
 # extractor (FFT vs $C_\ell$) so the geometric mechanism — *rotation
 # invariance vs translation invariance* — is visible without
-# heavy ML machinery.
+# heavy ML machinery. Both pipelines use **the same template-
+# matching idea** (cross-correlate with a feature-shape template,
+# read out `(max, mean, std)` of the response, train a logistic
+# regression on top); the only thing that differs between them
+# is the substrate the convolution lives on — lat-lon raster
+# (translation-equivariant in pixel space, *not* rotation-
+# equivariant on the sphere) versus HEALPix sphere-harmonics
+# (exactly rotation-equivariant on the sphere). The latitude-
+# dependence of the result is therefore a pure property of the
+# substrate, not of the model class.
 #
 # ## Notebook 05 — propagate to marine biodiversity
 #
