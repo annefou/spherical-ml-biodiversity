@@ -25,8 +25,9 @@ keywords:
   - foscat
   - scattering networks
   - sphere-harmonic transforms
-  - atmospheric rivers
+  - matched filter
   - marine heatwaves
+  - Ningaloo Niño
   - biodiversity
   - climate-driven biodiversity
   - Copernicus
@@ -85,6 +86,38 @@ references:
         family-names: Perraudin
     year: 2020
     notes: "ICLR Workshop, arXiv:2012.15000"
+  - type: article
+    title: "Climate-driven regime shift of a temperate marine ecosystem"
+    authors:
+      - given-names: T.
+        family-names: Wernberg
+      - given-names: S.
+        family-names: Bennett
+      - given-names: R. C.
+        family-names: Babcock
+      - given-names: T.
+        family-names: de Bettignies
+    journal: "Science"
+    volume: 353
+    pages: 169-172
+    year: 2016
+    doi: "10.1126/science.aad8745"
+  - type: article
+    title: "A hierarchical approach to defining marine heatwaves"
+    authors:
+      - given-names: A. J.
+        family-names: Hobday
+      - given-names: L. V.
+        family-names: Alexander
+      - given-names: S. E.
+        family-names: Perkins
+      - given-names: D. A.
+        family-names: Smale
+    journal: "Progress in Oceanography"
+    volume: 141
+    pages: 227-238
+    year: 2016
+    doi: "10.1016/j.pocean.2015.12.014"
   - type: article
     title: "Advancing parsimonious deep learning weather prediction using HEALPix"
     authors:

@@ -3,7 +3,7 @@
   "@type": "SoftwareSourceCode",
   "version": "0.1.0-dev",
   "name": "spherical-ml-biodiversity — what spherical ML is, why it matters, and a worked replication on Copernicus data tied to biodiversity",
-  "description": "Pedagogical and supporting-evidence repository operationalising the spherical-ML claim from dggs-biodiversity-bias. Three pedagogy notebooks demonstrate (01) the failure mode of flat CNNs on global lat-lon rasters, (02) rotation equivariance — what spherical CNNs preserve and flat CNNs don't, with quantitative demos showing 50.6% pixel disagreement when treating rotation as translation and 100% to 55% peak-response collapse of an equator-cap detector across latitudes, and (03) why HEALPix is the right substrate for spherical ML — equal-area cells + iso-latitude rings + NESTED bit-shift hierarchical refinement + graph structure for DeepSphere-style graph CNNs. Forthcoming notebooks 04 to 08 will replicate Defferrard et al. 2020 DeepSphere atmospheric-river detection on ERA5 Copernicus C3S, add marine-heatwave detection on Copernicus Marine SST, tie both to biodiversity-impact literature (riparian Annex I habitats for ARs; coral / kelp / fish for marine heatwaves), and stack everything on the common HEALPix substrate. This is the spherical-ML side of the ESA GRID4EARTH case for Ellipsoidal HEALPix as a Common DGGS bridging Copernicus EO and Destination Earth.",
+  "description": "Pedagogical and supporting-evidence repository operationalising the spherical-ML claim from dggs-biodiversity-bias. Six notebooks: (01) the failure mode of flat CNNs on global lat-lon rasters, with the same physical 10° spherical cap distorting differently at 0/40/70°N; (02) rotation equivariance — what spherical CNNs preserve and flat CNNs don't, with 50.6% pixel disagreement when treating rotation as translation and 100% → 55% peak-response collapse of an equator-cap matched filter from 0°N to 80°N; (03) why HEALPix is the right substrate — equal-area cells + iso-latitude rings + NESTED bit-shift hierarchical refinement + graph structure for DeepSphere-style graph CNNs; (04) head-to-head detection comparison on synthetic global SST, where a flat lat-lon matched-filter baseline collapses from 1.000 accuracy at 0–20° to 0.500 at 70–80° while a HEALPix sphere-harmonic matched filter (band-pass kernel via aₗₘ → aₗₘ · fₗ · bₗ) holds at 1.000 across all four test latitude bands; (05) a real marine heatwave — the 2011 Western Australian Ningaloo Niño on NOAA OISST v2.1 aggregated to HEALPix-NESTED nside=128, with 24.7% of GBIF marine biodiversity occurrences from 2011 in the region falling on MHW-exposed cells, connecting the failure-mode arc to documented biodiversity impacts (Wernberg et al. 2016 kelp regime shift); (06) cross-discipline transfer on the spherical substrate — the conceptual case that sphere-aware models trained in one discipline transfer to others on the same HEALPix substrate. The DeepSphere atmospheric-river replication and AR-biodiversity-Europe follow-up live in the separate annefou/deepsphere-ar-replication repository (paper-rooted FORRT chain). This is the spherical-ML side of the ESA GRID4EARTH case for Ellipsoidal HEALPix as a Common DGGS bridging Copernicus EO and Destination Earth.",
   "license": "https://spdx.org/licenses/MIT",
   "codeRepository": "https://github.com/annefou/spherical-ml-biodiversity",
   "dateCreated": "2026-05-05",
@@ -52,6 +52,18 @@
       "name": "Advancing parsimonious deep learning weather prediction using HEALPix",
       "datePublished": "2024",
       "identifier": "https://doi.org/10.1029/2023MS004021"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "Climate-driven regime shift of a temperate marine ecosystem",
+      "datePublished": "2016",
+      "identifier": "https://doi.org/10.1126/science.aad8745"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "name": "A hierarchical approach to defining marine heatwaves",
+      "datePublished": "2016",
+      "identifier": "https://doi.org/10.1016/j.pocean.2015.12.014"
     }
   ],
   "isPartOf": [
@@ -76,8 +88,10 @@
     "foscat",
     "scattering networks",
     "sphere-harmonic transforms",
-    "atmospheric rivers",
+    "matched filter",
     "marine heatwaves",
+    "Ningaloo Niño",
+    "GBIF",
     "biodiversity",
     "climate-driven biodiversity",
     "Copernicus",
