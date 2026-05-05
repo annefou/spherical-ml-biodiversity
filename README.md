@@ -8,11 +8,11 @@ Follow-up to [**dggs-biodiversity-bias**](https://github.com/annefou/dggs-biodiv
 
 1. **What a flat CNN sees on a global raster is a projection-distorted view of the sphere.** Notebook 01 makes the failure mode visible: the same physical feature on the sphere becomes a wildly different *pixel-shape* depending on its latitude. CNNs trained on lat-lon-projected global data inherit this distortion silently.
 2. **Spherical ML respects the geometry of the sphere.** Notebook 02 demonstrates rotation equivariance — what spherical convolutions preserve and flat CNNs don't. Notebook 03 explains why HEALPix is the right substrate: equal-area + iso-latitude rings + NESTED bit-shift hierarchical refinement + native sphere-harmonic transforms.
-3. **Worked replication on Copernicus data with biodiversity outcomes.** Notebooks 04–07 replicate Defferrard et al. 2020 DeepSphere atmospheric-river detection on ERA5 (Copernicus C3S), then add marine-heatwave detection on Copernicus Marine SST and tie both to biodiversity impact literature (riparian Annex I habitats for ARs; coral / kelp / fish for marine heatwaves). Notebook 08 stacks all of it on the common HEALPix substrate.
+3. **Worked example on Copernicus Marine data tied to biodiversity.** Notebooks 04–05 (forthcoming) detect marine heatwaves on Copernicus Marine SST aggregated to HEALPix (Hobday et al. 2016 definition) and connect them to documented marine-biodiversity impacts (Smale 2019 global, Wernberg 2016 Australian kelp regime shift). Notebook 06 stacks Copernicus Marine SST + GBIF biodiversity occurrences + atmospheric-river detection outputs from the **separate `deepsphere-ar-replication`** repository on the common HEALPix substrate. The DeepSphere AR replication itself — a paper-rooted replication of Defferrard et al. 2020 on ClimateNet — lives in its own repo so its FORRT chain can be paper-rooted while the chain for this repo is question-rooted (PICO).
 
 ## Status
 
-Work in progress. Notebook 01 (flat-CNN failure mode) is the first pedagogical demonstration; the AR + MHW replication and biodiversity follow-up land in subsequent commits.
+Work in progress. Pedagogy notebooks 01–03 are committed and CI-verified; the MHW + biodiversity notebooks (04–05) and the multi-data integration notebook (06) land in subsequent commits.
 
 ## License
 
