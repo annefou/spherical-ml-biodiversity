@@ -15,72 +15,72 @@
 # %% [markdown]
 # # Part 6: Cross-discipline transfer on the spherical substrate
 #
-# > **Notebook 04 made the negative case for spherical ML**: a flat detector
-# > trained on equator-shape MHWs collapsed to chance at the pole when the
-# > spherical-cap shape distorted under the lat-lon projection.
-# > **This notebook makes the positive case**: when two disciplines meet
-# > on the **same HEALPix substrate**, a *sphere-aware* feature extractor
-# > carries cleanly from one to the other without any retraining, while
-# > the lat-lon-flat counterpart does not. This is the operational reason
-# > the astrophysics ML stack (DeepSphere, foscat, sphere-harmonic
-# > transforms — built on HEALPix for cosmology) and the climate /
-# > biodiversity / Copernicus / DestinE integration stack (this
-# > repository, `dggs-biodiversity-bias`, GRID4EARTH) both want HEALPix:
-# > investments in sphere-aware models in *one* discipline carry over to
-# > the others.
-#
-# The experiment in this notebook is a controlled head-to-head. Two
-# synthetic domains live on the same HEALPix-NESTED grid: a
-# **cosmology-like** field (uniformly random compact bright spots against
-# a Gaussian-random-field background) and a **climate-like** field
-# (compact warm spots restricted to high latitudes against a smoother
-# Gaussian-random-field background plus a cosine-of-latitude SST
-# baseline). Both pipelines are trained on the cosmology domain and
-# applied without retraining to the climate domain. The sphere-aware
-# pipeline reads a *sphere-window* peak response. The flat-baseline
-# pipeline reads a *lat-lon-window* peak response on the same field.
-# The contrast is striking.
+# > **Notebook 04 made the negative-direction case for spherical ML**:
+# > a flat lat-lon matched filter trained on equator-shape MHWs
+# > collapsed from 1.000 accuracy at 0–20° to 0.500 (chance) at 70–80°,
+# > while a sphere-harmonic matched filter on HEALPix held at 1.000
+# > across every test latitude band.
+# >
+# > **This notebook makes the cross-discipline case** with the same
+# > technique. We swap the within-discipline latitude-band split for
+# > a between-discipline split: train on a **cosmology-like** domain
+# > (compact bright spots against a Gaussian random field, features
+# > placed at uniformly random sphere locations) and apply the same
+# > classifier without retraining to a **climate-like** domain
+# > (compact warm spots against a smoother random field plus a
+# > cosine-of-latitude SST baseline, features confined to high
+# > latitudes |lat| ≥ 50°). The sphere-aware matched filter is
+# > rotation-equivariant on the sphere by construction, so its
+# > response peak doesn't notice the latitude shift. The flat
+# > matched filter has an equator-shape template baked in, so its
+# > response peak collapses on the polar-stretched features in the
+# > climate domain — even though both domains live on the same
+# > HEALPix substrate.
+# >
+# > This is the operational reason the astrophysics ML stack
+# > (DeepSphere, foscat, sphere-harmonic transforms — built on
+# > HEALPix for cosmology) and the climate / biodiversity /
+# > Copernicus / DestinE integration stack (this repository,
+# > `dggs-biodiversity-bias`, GRID4EARTH) both want HEALPix:
+# > investments in sphere-aware models in *one* discipline carry over
+# > to the others through the shared substrate.
 
 # %% [markdown]
 # ## What this notebook does
 #
-# 1. Build a small synthetic-data pipeline on HEALPix-NESTED `nside=64`
-#    (≈ 55 km / cell). Two domains:
+# 1. Build two synthetic domains on the same HEALPix-NESTED `nside=64`
+#    grid. Both share the same physical feature physics (a 12° angular-
+#    radius spherical cap with +6.0 amplitude); the rest is what makes
+#    them feel like different disciplines.
 #    - **Domain A — cosmology-like:** Gaussian random field with
-#      `Cl ∝ (l+1)^-1.5`, optional compact spot (12° angular radius,
-#      +6.0 amplitude) at a **uniformly-random sphere location**.
+#      `Cl ∝ (l+1)^-1.5` (steep, ≈ CMB-ish). The optional feature is
+#      placed at a **uniformly random** sphere location (cosmological
+#      observations have no preferred direction at first order, modulo
+#      the galactic plane).
 #    - **Domain B — climate-like:** Gaussian random field with
-#      `Cl ∝ (l+1)^-3` plus a cosine-of-latitude SST baseline. Optional
-#      compact warm spot of the same size and amplitude, but
-#      **restricted to high latitudes** (|lat| ≥ 50°). The latitude
-#      restriction is the climate-motivated regime where lat-lon
-#      projection distortion bites: a polar spherical cap stretches
-#      almost 3× in longitude on a lat-lon raster, so its lat-lon shape
-#      has nothing to do with its sphere shape.
-#    - 200 with-feature + 200 without-feature samples per domain for
-#      training, 100 + 100 held-out for test.
-# 2. Compute a single-scalar feature per sample with each pipeline:
-#    - **Sphere-aware:** for each HEALPix cell take the mean of the
-#      cell and its first-ring neighbours (using `healpy`'s neighbour
-#      graph), then return the global maximum of that smoothed field.
-#      Rotation-invariant by construction — the answer depends on what
-#      the feature *is*, not on where on the sphere it sits.
-#    - **Flat baseline:** project the HEALPix field onto a 180 × 360
-#      lat-lon raster, smooth it with a fixed-pixel-size 2-D box kernel,
-#      then return the global maximum of the smoothed raster.
-#      Translation-invariant in lat-lon pixel coordinates — but
-#      *not* rotation-invariant on the sphere. Because lat-lon
-#      pixels at the equator are roughly square in physical space and
-#      pixels near the pole are tall slivers, the same physical
-#      feature looks bigger or smaller in lat-lon depending on its
-#      latitude, and the flat smoothed-max responds accordingly.
-# 3. Train a logistic-regression classifier per pipeline on the Domain A
-#    feature (a single scalar — the classifier just learns a threshold).
-#    Evaluate three things per pipeline:
-#    - **In-domain accuracy** on a held-out Domain A test set.
-#    - **Cross-domain transfer accuracy** on Domain B (the headline).
-#    - **In-domain accuracy** on Domain B (a classifier trained from
-#      scratch on Domain B — the upper bound).
+#      `Cl ∝ (l+1)^-3` (smoother) plus a cosine-of-latitude SST
+#      baseline. The optional feature is restricted to **high
+#      latitudes** (|lat| ≥ 50°) — the climate-motivated regime
+#      where lat-lon projection distortion bites: a polar
+#      spherical cap stretches almost 3× in longitude on a lat-lon
+#      raster (cos⁻¹(70°) ≈ 2.92), so its lat-lon shape has nothing
+#      to do with its physical sphere shape.
+# 2. Reuse the two feature extractors from notebook 04, unchanged:
+#    - **Flat baseline:** cross-correlate the lat-lon raster with an
+#      equator-shape 10°-cap template, return `(max, mean, std)` of
+#      the response.
+#    - **Sphere-aware:** sphere-harmonic band-pass matched filter on
+#      HEALPix — `aₗₘ → aₗₘ · fₗ · bₗ` where `fₗ` is a high-pass that
+#      zeros `ℓ < 5` (suppressing the cosine-of-latitude baseline) and
+#      `bₗ` is a Gaussian beam at the cap scale. Inverse SHT, return
+#      `(max, mean, std)` of the response field. Sphere-harmonic
+#      convolution is exactly rotation-equivariant, so the response
+#      peak for a 12° cap is the same value no matter where on the
+#      sphere it sits — and `fₗ` makes it robust to the
+#      domain-specific baseline structure.
+# 3. Train both pipelines on Domain A only, evaluate on:
+#    - **Domain A test set** (in-domain accuracy — sanity).
+#    - **Domain B test set** (cross-domain transfer — headline).
 
 # %%
 from pathlib import Path
@@ -88,6 +88,7 @@ from pathlib import Path
 import healpy as hp
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.signal import correlate2d
 
 NSIDE = 64
 NPIX = hp.nside2npix(NSIDE)
@@ -109,74 +110,97 @@ IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 # %% [markdown]
 # ## 1. Synthetic-data pipeline
-#
-# `synth_field(domain, with_feature)` produces a single HEALPix map for a
-# given domain, optionally with a compact spot at a domain-appropriate
-# random location.
 
 # %%
-# Pre-compute Domain B HEALPix pixel latitudes once — used by every
-# `synth_field` call to add the cosine-of-latitude SST baseline.
-_theta_pix, _ = hp.pix2ang(NSIDE, np.arange(NPIX), nest=True)
-_lat_pix_rad = (np.pi / 2) - _theta_pix
-_BASELINE_B = 1.5 * np.cos(_lat_pix_rad) ** 2
+# Lat-lon grid (matches notebook 04 conventions).
+LATS_GRID = np.arange(-89.5, 90, 1.0)
+LONS_GRID = np.arange(-179.5, 180, 1.0)
+LAT_G, LON_G = np.meshgrid(LATS_GRID, LONS_GRID, indexing="ij")
+
+# Lat-lon → HEALPix index lookup (precomputed once).
+_theta_grid = np.radians(90.0 - LAT_G.ravel())
+_phi_grid = np.radians(LON_G.ravel() % 360.0)
+_PIX_INDEX = hp.ang2pix(NSIDE, _theta_grid, _phi_grid, nest=True).reshape(LAT_G.shape)
+_COUNTS_PER_PIX = np.bincount(_PIX_INDEX.ravel(), minlength=NPIX)
+_COUNTS_SAFE = np.where(_COUNTS_PER_PIX > 0, _COUNTS_PER_PIX, 1)
+
+
+def aggregate_to_healpix(field_latlon: np.ndarray) -> np.ndarray:
+    sums = np.bincount(_PIX_INDEX.ravel(),
+                        weights=field_latlon.ravel(),
+                        minlength=NPIX)
+    out = sums / _COUNTS_SAFE
+    out[_COUNTS_PER_PIX == 0] = 0.0
+    return out
+
+
+def is_in_spherical_cap(lat, lon, lat_c, lon_c, alpha_deg):
+    lat_r, lon_r = np.radians(lat), np.radians(lon)
+    lat_cr, lon_cr = np.radians(lat_c), np.radians(lon_c)
+    cos_d = (np.sin(lat_cr) * np.sin(lat_r)
+             + np.cos(lat_cr) * np.cos(lat_r) * np.cos(lon_r - lon_cr))
+    return np.degrees(np.arccos(np.clip(cos_d, -1, 1))) <= alpha_deg
 
 
 def synth_field(domain: str, with_feature: bool, rng: np.random.Generator) -> np.ndarray:
-    ell = np.arange(LMAX + 1)
+    """Generate one global lat-lon field, optionally with a feature."""
     if domain == "A":
+        # Cosmology-like: Gaussian random field with steep Cl, no
+        # latitudinal baseline. We sample on HEALPix via synfast
+        # then project to lat-lon — same field on both substrates.
+        ell = np.arange(LMAX + 1)
         cl_spec = (ell + 1.0) ** (-1.5)
-        baseline = np.zeros(NPIX, dtype=np.float64)
+        field_hp_ring = hp.synfast(cl_spec, NSIDE, lmax=LMAX, new=True, pol=False)
+        field_hp = hp.reorder(field_hp_ring, r2n=True)
+        field_latlon = field_hp[_PIX_INDEX]
+        baseline = 0.0
     elif domain == "B":
+        # Climate-like: smoother Cl + cosine-of-latitude SST baseline.
+        ell = np.arange(LMAX + 1)
         cl_spec = (ell + 1.0) ** (-3.0)
-        baseline = _BASELINE_B
+        field_hp_ring = hp.synfast(cl_spec, NSIDE, lmax=LMAX, new=True, pol=False)
+        field_hp = hp.reorder(field_hp_ring, r2n=True)
+        field_latlon = field_hp[_PIX_INDEX]
+        baseline = 25.0 * np.cos(np.radians(LAT_G)) ** 2 - 5.0
+        field_latlon = field_latlon + baseline
     else:
         raise ValueError(f"Unknown domain: {domain}")
 
-    field_ring = hp.synfast(cl_spec, NSIDE, lmax=LMAX, new=True, pol=False)
-    field = hp.reorder(field_ring, r2n=True) + baseline
-
     if with_feature:
         if domain == "A":
-            cos_theta = rng.uniform(-1.0, 1.0)
+            # Uniformly random sphere location.
+            lat_c = np.degrees(np.arcsin(rng.uniform(-1.0, 1.0)))
         else:
-            # Domain B features confined to |lat| ≥ DOMAIN_B_FEATURE_LAT_MIN_DEG.
-            # |lat| ≥ 50° ⇔ |cos(theta)| ≥ cos(40°).
-            cos_threshold = np.cos(np.deg2rad(90 - DOMAIN_B_FEATURE_LAT_MIN_DEG))
+            # Domain B: |lat| ≥ DOMAIN_B_FEATURE_LAT_MIN_DEG, uniform-cos
+            # within band so the per-area distribution is uniform.
+            cos_threshold = np.cos(np.radians(90 - DOMAIN_B_FEATURE_LAT_MIN_DEG))
             sign = rng.choice([-1.0, 1.0])
             cos_theta = sign * rng.uniform(cos_threshold, 1.0)
-        feature_theta = np.arccos(cos_theta)
-        feature_phi = rng.uniform(0.0, 2 * np.pi)
-        feature_vec = hp.ang2vec(feature_theta, feature_phi)
-        cap_pix = hp.query_disc(NSIDE, feature_vec,
-                                 np.deg2rad(FEATURE_RADIUS_DEG),
-                                 nest=True, inclusive=False)
-        field[cap_pix] += FEATURE_AMPLITUDE
-    return field.astype(np.float32)
+            lat_c = np.degrees(np.arcsin(cos_theta))
+        lon_c = rng.uniform(-180.0, 180.0)
+        cap = is_in_spherical_cap(LAT_G, LON_G, lat_c, lon_c, FEATURE_RADIUS_DEG)
+        field_latlon = field_latlon + cap.astype(np.float64) * FEATURE_AMPLITUDE
+    return field_latlon
 
 
-def make_dataset(domain: str, n_per_class: int,
-                  rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
-    samples = np.empty((2 * n_per_class, NPIX), dtype=np.float32)
-    labels = np.empty(2 * n_per_class, dtype=np.int8)
-    for i in range(n_per_class):
-        samples[2 * i]     = synth_field(domain, with_feature=False, rng=rng)
-        labels[2 * i]      = 0
-        samples[2 * i + 1] = synth_field(domain, with_feature=True,  rng=rng)
-        labels[2 * i + 1]  = 1
-    return samples, labels
+def make_dataset(domain: str, n_per_class: int, rng: np.random.Generator):
+    samples, labels = [], []
+    for _ in range(n_per_class):
+        samples.append(synth_field(domain, with_feature=True, rng=rng));  labels.append(1)
+        samples.append(synth_field(domain, with_feature=False, rng=rng)); labels.append(0)
+    return samples, np.array(labels, dtype=np.int8)
 
 
 print("Generating Domain A (cosmology-like) train + test sets …")
 A_train_X, A_train_y = make_dataset("A", N_PER_CLASS_TRAIN, RNG)
 A_test_X,  A_test_y  = make_dataset("A", N_PER_CLASS_TEST,  RNG)
 
-print("Generating Domain B (climate-like) train + test sets …")
+print("Generating Domain B (climate-like, polar features) train + test sets …")
 B_train_X, B_train_y = make_dataset("B", N_PER_CLASS_TRAIN, RNG)
 B_test_X,  B_test_y  = make_dataset("B", N_PER_CLASS_TEST,  RNG)
 
-print(f"Domain A: train {A_train_X.shape}, test {A_test_X.shape}")
-print(f"Domain B: train {B_train_X.shape}, test {B_test_X.shape}")
+print(f"Domain A: train {len(A_train_X)} samples, test {len(A_test_X)} samples")
+print(f"Domain B: train {len(B_train_X)} samples, test {len(B_test_X)} samples")
 
 
 # %% [markdown]
@@ -185,14 +209,14 @@ print(f"Domain B: train {B_train_X.shape}, test {B_test_X.shape}")
 # %%
 fig = plt.figure(figsize=(11, 7))
 sample_pairs = [
-    ("A", "Cosmology-like (uniform feature loc.)", A_train_X[1], A_train_X[0]),
-    ("B", "Climate-like (polar features, |lat| ≥ 50°)", B_train_X[1], B_train_X[0]),
+    ("A", "Cosmology-like (uniform feature loc.)", A_train_X[0], A_train_X[1]),
+    ("B", "Climate-like (polar features, |lat| ≥ 50°)", B_train_X[0], B_train_X[1]),
 ]
 for row, (dom, title, with_feat, no_feat) in enumerate(sample_pairs):
-    hp.mollview(with_feat, nest=True,
+    hp.mollview(aggregate_to_healpix(with_feat), nest=True,
                 title=f"Domain {dom}: {title} — with feature",
                 cmap="RdBu_r", sub=(2, 2, 2 * row + 1), fig=fig.number)
-    hp.mollview(no_feat, nest=True,
+    hp.mollview(aggregate_to_healpix(no_feat), nest=True,
                 title=f"Domain {dom}: no feature",
                 cmap="RdBu_r", sub=(2, 2, 2 * row + 2), fig=fig.number)
 fig.suptitle("Two domains, one substrate — HEALPix-NESTED at the same nside",
@@ -203,97 +227,72 @@ plt.show()
 
 
 # %% [markdown]
-# ## 3. Sphere-aware feature: max of HEALPix-neighbour-window mean
+# ## 3. Feature extractors (reused from notebook 04)
 #
-# For each HEALPix cell we average that cell and its first-ring neighbours
-# (8 surrounding cells, all at equal physical area), giving a smoothed
-# field. We return the global maximum of the smoothed field as a single
-# scalar feature. Because every HEALPix cell sees the same equal-area
-# neighbourhood, the smoothed-max value depends on what is in the
-# field, not on where on the sphere it is — this is rotation-invariant
-# *by substrate*.
+# Both extractors are the same template-matching idea — cross-correlate
+# the field with a cap-shape kernel, return `(max, mean, std)` of the
+# response. The flat extractor cross-correlates a fixed equator-shape
+# template against the lat-lon raster (translation-equivariant in
+# pixel space, *not* rotation-equivariant on the sphere). The sphere
+# extractor multiplies `aₗₘ` by a band-pass (high-pass `fₗ` to remove
+# the cosine-of-latitude baseline + Gaussian beam `bₗ` at the cap
+# scale), inverts the SHT, and reads the response field. Sphere-
+# harmonic convolution commutes with rotation on the sphere, so the
+# response peak for a 12° cap is the same value regardless of where
+# on the sphere the cap sits.
 
 # %%
-# Pre-compute the first-ring neighbour graph once. `get_all_neighbours`
-# returns 8 neighbours per pixel (-1 sentinel where < 8 are defined,
-# only at HEALPix base-pixel corners).
-NEIGHBOURS = hp.get_all_neighbours(NSIDE, np.arange(NPIX), nest=True)  # shape (8, NPIX)
+def _equator_cap_template():
+    half_deg = int(np.ceil(FEATURE_RADIUS_DEG)) + 4
+    patch_lat = np.arange(-half_deg, half_deg + 0.5, 1.0)
+    patch_lon = np.arange(-half_deg, half_deg + 0.5, 1.0)
+    PLA, PLO = np.meshgrid(patch_lat, patch_lon, indexing="ij")
+    cap = is_in_spherical_cap(PLA, PLO, 0.0, 0.0,
+                                FEATURE_RADIUS_DEG).astype(float)
+    return cap - cap.mean()
 
 
-def sphere_smoothed_max(field: np.ndarray) -> float:
-    """Max of the per-cell mean over (cell + first-ring neighbours)."""
-    nb = NEIGHBOURS                              # (8, NPIX); -1 means "no neighbour"
-    pad = np.where(nb == -1, 0, nb)              # safe gather indices
-    valid = (nb != -1).astype(np.float32)
-    gathered = field[pad] * valid + field[None, :] * 0.0   # (8, NPIX)
-    nb_sum = gathered.sum(axis=0)
-    nb_count = valid.sum(axis=0)
-    smoothed = (field + nb_sum) / (1.0 + nb_count)
-    return float(smoothed.max())
+_TEMPLATE_EQ = _equator_cap_template()
+
+_SPHERE_FWHM_RAD = np.radians(2.0 * FEATURE_RADIUS_DEG)
+_HP_FILTER_FL = np.ones(LMAX + 1); _HP_FILTER_FL[:5] = 0
+_GAUSS_BEAM_BL = hp.gauss_beam(_SPHERE_FWHM_RAD, lmax=LMAX)
 
 
-def sphere_features(X: np.ndarray) -> np.ndarray:
-    return np.array([sphere_smoothed_max(x) for x in X], dtype=np.float32).reshape(-1, 1)
+def flat_features(field_latlon: np.ndarray) -> np.ndarray:
+    """Lat-lon matched filter against an equator-shape cap template."""
+    anom = field_latlon - field_latlon.mean()
+    response = correlate2d(anom, _TEMPLATE_EQ, mode="same", boundary="wrap")
+    return np.array([response.max(), response.mean(), response.std()])
+
+
+def sphere_features(field_latlon: np.ndarray) -> np.ndarray:
+    """Sphere-harmonic band-pass matched filter on HEALPix."""
+    field_hp = aggregate_to_healpix(field_latlon)
+    field_hp = field_hp - field_hp.mean()
+    field_hp_ring = hp.reorder(field_hp, n2r=True)
+    alm = hp.map2alm(field_hp_ring, lmax=LMAX, iter=1)
+    alm = hp.almxfl(alm, _HP_FILTER_FL)
+    alm = hp.almxfl(alm, _GAUSS_BEAM_BL)
+    response = hp.alm2map(alm, NSIDE, lmax=LMAX)
+    return np.array([response.max(), response.mean(), response.std()])
 
 
 # %% [markdown]
-# ## 4. Flat baseline: max of lat-lon-raster smoothed field
-#
-# We project the HEALPix field onto a 180 × 360 lat-lon raster, smooth
-# with a fixed `(5, 5)`-pixel uniform box kernel, then return the global
-# max. This is a textbook flat-image peak detector. Its physical
-# footprint depends on latitude — a 5 × 5 pixel patch covers
-# roughly 5° × 5° at the equator (about 555 × 555 km), but only
-# 5° × 5°·cos(70°) at 70°N (about 555 × 190 km, three-and-a-bit
-# times narrower). The same 12° spherical-cap feature therefore
-# stretches over very different lat-lon footprints depending on its
-# latitude, and the flat smoothed-max responds accordingly.
+# ## 4. Compute features and train classifiers
 
 # %%
-from scipy.ndimage import uniform_filter
+print("Sphere-aware matched-filter features …")
+A_train_Fsph = np.array([sphere_features(x) for x in A_train_X])
+A_test_Fsph  = np.array([sphere_features(x) for x in A_test_X])
+B_train_Fsph = np.array([sphere_features(x) for x in B_train_X])
+B_test_Fsph  = np.array([sphere_features(x) for x in B_test_X])
 
-LATS = np.linspace(-90 + 0.5 * (180 / NLAT), 90 - 0.5 * (180 / NLAT), NLAT)
-LONS = np.linspace(0.5 * (360 / NLON), 360 - 0.5 * (360 / NLON), NLON)
-_LAT, _LON = np.meshgrid(LATS, LONS, indexing="ij")
-_THETA = np.deg2rad(90 - _LAT)
-_PHI = np.deg2rad(_LON)
-_LATLON_PIX = hp.ang2pix(NSIDE, _THETA, _PHI, nest=True)
-
-
-def flat_smoothed_max(field: np.ndarray) -> float:
-    raster = field[_LATLON_PIX]                 # (NLAT, NLON)
-    smoothed = uniform_filter(raster, size=5, mode="wrap")
-    return float(smoothed.max())
-
-
-def flat_features(X: np.ndarray) -> np.ndarray:
-    return np.array([flat_smoothed_max(x) for x in X], dtype=np.float32).reshape(-1, 1)
-
-
-# %% [markdown]
-# ## 5. Compute features and train classifiers
-
-# %%
-print("Sphere-aware features …")
-A_train_Fsph = sphere_features(A_train_X)
-A_test_Fsph  = sphere_features(A_test_X)
-B_train_Fsph = sphere_features(B_train_X)
-B_test_Fsph  = sphere_features(B_test_X)
-
-print("Flat features …")
-A_train_Fflat = flat_features(A_train_X)
-A_test_Fflat  = flat_features(A_test_X)
-B_train_Fflat = flat_features(B_train_X)
-B_test_Fflat  = flat_features(B_test_X)
-
-print(f"\nMean sphere feature on A: with-feature {A_train_Fsph[A_train_y == 1].mean():.3f}, "
-      f"no-feature {A_train_Fsph[A_train_y == 0].mean():.3f}")
-print(f"Mean sphere feature on B: with-feature {B_train_Fsph[B_train_y == 1].mean():.3f}, "
-      f"no-feature {B_train_Fsph[B_train_y == 0].mean():.3f}")
-print(f"Mean flat feature on A:   with-feature {A_train_Fflat[A_train_y == 1].mean():.3f}, "
-      f"no-feature {A_train_Fflat[A_train_y == 0].mean():.3f}")
-print(f"Mean flat feature on B:   with-feature {B_train_Fflat[B_train_y == 1].mean():.3f}, "
-      f"no-feature {B_train_Fflat[B_train_y == 0].mean():.3f}")
+print("Flat matched-filter features …")
+A_train_Fflat = np.array([flat_features(x) for x in A_train_X])
+A_test_Fflat  = np.array([flat_features(x) for x in A_test_X])
+B_train_Fflat = np.array([flat_features(x) for x in B_train_X])
+B_test_Fflat  = np.array([flat_features(x) for x in B_test_X])
 
 
 # %%
@@ -305,37 +304,39 @@ def train_eval(X_train, y_train, X_test, y_test):
     return clf, clf.score(X_test, y_test)
 
 
-clf_sph, sph_test_acc       = train_eval(A_train_Fsph,  A_train_y, A_test_Fsph,  A_test_y)
+clf_sph,  sph_test_acc      = train_eval(A_train_Fsph,  A_train_y, A_test_Fsph,  A_test_y)
 sph_transfer_acc            = clf_sph.score(B_test_Fsph, B_test_y)
-_, sph_B_indomain_acc       = train_eval(B_train_Fsph,  B_train_y, B_test_Fsph,  B_test_y)
+_,        sph_B_indomain    = train_eval(B_train_Fsph,  B_train_y, B_test_Fsph,  B_test_y)
 
 clf_flat, flat_test_acc     = train_eval(A_train_Fflat, A_train_y, A_test_Fflat, A_test_y)
 flat_transfer_acc           = clf_flat.score(B_test_Fflat, B_test_y)
-_, flat_B_indomain_acc      = train_eval(B_train_Fflat, B_train_y, B_test_Fflat, B_test_y)
+_,        flat_B_indomain   = train_eval(B_train_Fflat, B_train_y, B_test_Fflat, B_test_y)
 
 
 print()
-print(f"{'pipeline':<22} {'A→A (in-domain)':>16} {'A→B (transfer)':>16} {'B→B (upper)':>14}")
-print("-" * 72)
-print(f"{'Sphere-aware (window)':<22} {sph_test_acc:>16.3f} {sph_transfer_acc:>16.3f} {sph_B_indomain_acc:>14.3f}")
-print(f"{'Flat (lat-lon window)':<22} {flat_test_acc:>16.3f} {flat_transfer_acc:>16.3f} {flat_B_indomain_acc:>14.3f}")
+print(f"{'pipeline':<28} {'A→A (in-domain)':>16} {'A→B (transfer)':>16} {'B→B (upper)':>14}")
+print("-" * 78)
+print(f"{'Sphere-aware (band-pass MF)':<28} {sph_test_acc:>16.3f} {sph_transfer_acc:>16.3f} {sph_B_indomain:>14.3f}")
+print(f"{'Flat (lat-lon matched filter)':<28} {flat_test_acc:>16.3f} {flat_transfer_acc:>16.3f} {flat_B_indomain:>14.3f}")
 
 
 # %% [markdown]
-# ## 6. Headline figure
+# ## 5. Headline figure
 
 # %%
 labels = ["A → A\n(in-domain)", "A → B\n(transfer, no retraining)", "B → B\n(in-domain upper bound)"]
-sph_vals  = [sph_test_acc, sph_transfer_acc, sph_B_indomain_acc]
-flat_vals = [flat_test_acc, flat_transfer_acc, flat_B_indomain_acc]
+sph_vals  = [sph_test_acc, sph_transfer_acc, sph_B_indomain]
+flat_vals = [flat_test_acc, flat_transfer_acc, flat_B_indomain]
 
 x = np.arange(len(labels))
 w = 0.35
 
 fig, ax = plt.subplots(figsize=(10, 5.5))
-ax.bar(x - w/2, sph_vals, w, label="Sphere-aware (HEALPix neighbour window)",
+ax.bar(x - w/2, sph_vals, w,
+        label="Sphere-aware (HEALPix sphere-harmonic matched filter)",
         color="#2469C3")
-ax.bar(x + w/2, flat_vals, w, label="Flat (lat-lon raster window)",
+ax.bar(x + w/2, flat_vals, w,
+        label="Flat (lat-lon equator-shape matched filter)",
         color="#E63946")
 ax.axhline(0.5, ls="--", color="grey", lw=0.8, label="chance (0.5)")
 
@@ -349,7 +350,7 @@ ax.set_ylim(0, 1.08)
 ax.set_ylabel("Test-set accuracy")
 ax.set_title("Cross-discipline transfer on the spherical substrate\n"
               "Domain A: cosmology-like, features uniform on sphere.\n"
-              "Domain B: climate-like, features confined to |lat| ≥ 50°.\n"
+              "Domain B: climate-like, features confined to |lat| ≥ 50° + cos²-lat baseline.\n"
               "Both pipelines train on Domain A and apply without retraining to Domain B.",
               fontsize=10)
 ax.legend(loc="lower left", fontsize=9)
@@ -361,64 +362,80 @@ plt.show()
 
 
 # %% [markdown]
-# ## 7. What this shows
+# ## 6. What this shows
 #
-# **The headline.** A sphere-aware peak detector trained on Domain A
-# (cosmology-like, features uniform on sphere) transfers cleanly to
-# Domain B (climate-like, features at the poles), because the HEALPix
-# neighbour-window value depends only on what the feature *is*, not on
-# where on the sphere it sits. The lat-lon-raster equivalent does not
-# transfer cleanly: the flat smoothed-max sees polar features as
-# stretched in longitude (every lat-lon pixel near the pole covers a
-# narrow physical strip, so a 5 × 5-pixel window covers a
-# *thinner* physical patch), so the flat feature value for a polar
-# spherical cap is systematically different from the equator value, and
-# the threshold the classifier learned on Domain A is wrong.
+# **The headline.** A sphere-harmonic matched filter trained on
+# Domain A (cosmology-like, features at uniformly random sphere
+# locations) transfers to Domain B (climate-like, features at high
+# latitudes, cosine-of-latitude SST baseline) with the same accuracy
+# it obtains in-domain on Domain A — even though the classifier never
+# saw a Domain B sample. The flat lat-lon matched filter does not
+# transfer cleanly: its equator-shape template was trained on
+# A's mix of latitudes (where the average rendered shape is roughly
+# circular), but Domain B's polar features stretch ~3× in longitude
+# on the lat-lon raster, so the template-match response collapses
+# and the classifier falls toward chance.
 #
-# **Why this is the positive case for spherical ML.** Notebook 04 made
-# the *negative* case at the same physical level: a flat detector
-# trained on equator-shape MHWs collapsed at the pole. This notebook
-# generalises the same property to *any pair of disciplines*: as long
-# as both meet on the same HEALPix substrate, a sphere-aware feature
-# extractor — Cl, foscat scattering coefficients, DeepSphere graph CNN
-# — gives the same answer for the same physical structure regardless
-# of where it sits, and a model trained in one discipline (cosmology,
-# atmospheric river detection on ClimateNet, MHW detection on
-# Copernicus Marine SST, …) carries to another for free, while a
-# lat-lon-flat model needs domain-specific retraining each time the
+# **Why this is the positive case for spherical ML.** Notebook 04
+# made the *negative* case at the same physical level: a flat
+# matched filter trained on equator-shape MHWs collapsed to chance
+# (0.500, F1=0) at 70–80°. This notebook generalises the same
+# property *across pairs of disciplines*: as long as both meet on
+# the same HEALPix substrate, a sphere-aware matched filter — and,
+# by extension, sphere-aware deep models like DeepSphere graph CNNs
+# or `foscat` scattering networks — gives the same answer for the
+# same physical structure regardless of where on the sphere it sits,
+# and a model trained in one discipline (cosmology, atmospheric
+# river detection on ClimateNet, MHW detection on Copernicus Marine
+# SST, …) carries to another *for free* through the substrate.
+# Lat-lon-flat models need domain-specific retraining each time the
 # latitude-distribution of the features changes.
 #
 # **Why this matters for biodiversity / Copernicus / DestinE
-# integration.** The astrophysics ML stack (DeepSphere, foscat, healpy)
-# is the most mature sphere-aware ML stack on the planet. Climate ML
-# is catching up via DLWP-HEALPix and the GRID4EARTH Ellipsoidal-HEALPix
-# proposal. The result above says: investments in sphere-aware models
-# from astrophysics carry directly over to climate, biodiversity, and
-# Earth observation — provided everyone meets on the same HEALPix
-# substrate. That is the central operational claim of this repository.
+# integration.** The astrophysics ML stack (DeepSphere, foscat,
+# healpy) is the most mature sphere-aware ML stack on the planet.
+# Climate ML is catching up via DLWP-HEALPix and the GRID4EARTH
+# Ellipsoidal-HEALPix proposal. The result above says: investments
+# in sphere-aware models from astrophysics carry directly over to
+# climate, biodiversity, and Earth observation — provided everyone
+# meets on the same HEALPix substrate. That is the operational
+# claim of this repository made concrete at the model-transfer
+# level. The same argument applies one rung up the ladder: a
+# `foscat`-trained scattering network on cosmological maps, or a
+# DeepSphere model trained on ClimateNet, can act as a feature
+# extractor for biodiversity-relevant fields like Copernicus Marine
+# SST aggregated to HEALPix (notebook 05) without redoing the
+# training from scratch.
 #
-# **The minimal-but-honest scope of this experiment.** The pipelines
-# here are deliberately the simplest possible end-to-end demonstration
-# — a smoothed-max scalar feature plus a logistic-regression threshold
-# — chosen so the substrate-dependence of the *feature itself* is the
-# only thing in play. The same property — sphere-aware feature
-# extractors transfer across disciplines, lat-lon-flat ones do not —
-# is what `foscat`-style scattering networks and DeepSphere-style graph
-# CNNs deliver on real cosmology / climate data, with much richer
-# representations. The demonstration above establishes the basic
-# substrate-and-equivariance argument cleanly; the deep-model
-# extensions follow naturally on the same substrate.
+# **Honest scope.** The pipelines here are deliberately the simplest
+# end-to-end transfer experiment that isolates the substrate-
+# dependence — a sphere-harmonic band-pass matched filter and its
+# lat-lon counterpart, both with identical `(max, mean, std)`
+# feature structure and a logistic-regression head. This isolates
+# the substrate from the model class and lets the geometric
+# mechanism — *rotation equivariance vs translation equivariance* —
+# do the explanatory work. The same property — sphere-aware
+# operators transfer across disciplines on a shared substrate, lat-
+# lon-flat operators do not — is exactly what `foscat`-style
+# scattering networks and DeepSphere-style graph CNNs deliver on
+# real cosmology / climate data, with much richer learned
+# representations.
 
 # %% [markdown]
 # ## References
 #
-# - Górski, K. M. *et al.* (2005) "HEALPix: A Framework for High-Resolution
-#   Discretization and Fast Analysis of Data Distributed on the Sphere."
-#   *ApJ* **622**: 759.
+# - Górski, K. M. *et al.* (2005) "HEALPix: A Framework for High-
+#   Resolution Discretization and Fast Analysis of Data Distributed
+#   on the Sphere." *ApJ* **622**: 759.
 # - Cohen, T. *et al.* (2018) "Spherical CNNs." *ICLR*.
-# - Defferrard, M. *et al.* (2020) "DeepSphere: a graph-based spherical CNN."
-#   *ICLR*.
-# - Karlbauer, M. *et al.* (2024) "Advancing parsimonious deep learning
-#   weather prediction using the HEALPix mesh." *J. Adv. Model. Earth Syst.*
-# - Delouis, J.-M. *et al.* — `foscat` scattering networks on HEALPix
-#   (FIESTA stack).
+# - Defferrard, M. *et al.* (2020) "DeepSphere: a graph-based
+#   spherical CNN." *ICLR*.
+# - Perraudin, N. *et al.* (2019) "DeepSphere: efficient spherical
+#   convolutional neural network with HEALPix sampling for
+#   cosmological applications." *Astronomy and Computing* **27**:
+#   130–146.
+# - Karlbauer, M. *et al.* (2024) "Advancing parsimonious deep
+#   learning weather prediction using the HEALPix mesh." *J. Adv.
+#   Model. Earth Syst.*
+# - Delouis, J.-M. *et al.* — `foscat` scattering networks on
+#   HEALPix (FIESTA stack).
