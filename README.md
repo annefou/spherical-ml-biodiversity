@@ -18,7 +18,7 @@ Work in progress.
 - **Notebook 04** — spherical-ML head-to-head on synthetic global SST. A flat lat-lon matched-filter detector trained on equator-shape MHWs collapses from 100 % accuracy in-distribution to 50 % (chance, F1 = 0) at 70–80°N, while sphere-aware HEALPix Cl features hold 71–91 % across all latitudes. Shipped.
 - **Notebook 05** — real Ningaloo-Niño-2011 marine heatwave on NOAA OISST → HEALPix substrate, with GBIF marine biodiversity overlay. Shipped.
 - **Notebook 06** — cross-discipline spherical-ML transfer: a sphere-aware model trained in one discipline (astrophysics, where the HEALPix ML stack is most mature) applied without retraining to a climate / biodiversity task on the same HEALPix substrate, vs a flat baseline trained from scratch. The *positive* spherical-ML payoff complementing notebook 04's failure-mode demo. Forthcoming.
-- **FORRT chain** + **Research Software nanopub** — drafted in [`docs/forrt_chains_drafts.md`](docs/forrt_chains_drafts.md) (three parallel atomic chains + Research Software + Research Synthesis = 20 nanopubs). To be published on Science Live after `v0.1.0` is tagged and Zenodo mints the concept DOI.
+- **FORRT chain** + **Research Software nanopub** — three parallel atomic chains (within-discipline latitude invariance, real-data Ningaloo-Niño-2011 biodiversity exposure, cross-discipline transfer) + a Research Software nanopub + a Research Synthesis nanopub. To be published on Science Live after `v0.1.0` is tagged and Zenodo mints the concept DOI.
 
 ## License
 
