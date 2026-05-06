@@ -445,34 +445,40 @@ ax.add_feature(cfeature.LAND, facecolor="#dddddd", zorder=1)
 ax.add_feature(cfeature.COASTLINE, linewidth=0.6, zorder=2)
 ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
 
-# Render the HEALPix MHW field as an image via healpy, then overlay it.
-# The simplest cross-projection rendering is a per-grid-cell pcolormesh on the
-# original SST lat-lon grid using the per-grid-cell mhw_days_per_cell field —
-# we already have that, and it lives 1-to-1 with HEALPix cells at this NSIDE.
-lon_plot = sst_2011.lon.values
-lat_plot = sst_2011.lat.values
-mhw_field = np.where(mhw_days_per_cell > 0, mhw_days_per_cell, np.nan)
+# Render the HEALPix MHW field — same approach as the first figure: sample
+# a high-resolution lat-lon mesh through `hp.ang2pix` so each HEALPix cell
+# stamps as a discrete block on the cartopy axis. This is the actual
+# HEALPix-aggregated field, not the OISST lat-lon raster.
+mhw_field_hd_overlay = mhw_days_hp[hp_idx_hd]
+mhw_field_hd_overlay = np.where(np.isnan(mhw_field_hd_overlay)
+                                  | (mhw_field_hd_overlay == 0),
+                                  np.nan, mhw_field_hd_overlay)
 cmesh = ax.pcolormesh(
-    lon_plot, lat_plot, mhw_field,
+    LON_HD, LAT_HD, mhw_field_hd_overlay,
     cmap="hot_r", shading="auto", vmin=0,
-    vmax=int(mhw_days_per_cell.max()) if mhw_days_per_cell.max() > 0 else 1,
+    vmax=float(np.nanmax(mhw_days_hp)),
     transform=ccrs.PlateCarree(), zorder=3, alpha=0.85,
 )
 plt.colorbar(cmesh, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
              label="MHW-days, Jan–Apr 2011 (anomaly > 1.5 °C, ≥5 consecutive days)")
 
-# GBIF occurrences (convert lon back to -180-180 for plotting on PlateCarree)
+# GBIF occurrences (convert lon back to -180-180 for plotting on PlateCarree).
+# We split into two mutually-exclusive groups so the legend counts add up
+# correctly: records on MHW-exposed cells in cyan, records that did not
+# experience MHW conditions in black.
 plot_lon = np.where(occ_lon > 180, occ_lon - 360, occ_lon)
-ax.scatter(plot_lon, occ_lat,
-           s=4, c="black", alpha=0.5,
-           transform=ccrs.PlateCarree(), zorder=4, label="GBIF marine occurrence (2011)")
-
-# Highlight the MHW-exposed records in cyan
 exposed_mask = occ_df["mhw_days"].to_numpy() > 0
+n_exposed = int(exposed_mask.sum())
+n_unexposed = int(len(occ_df) - n_exposed)
+
+ax.scatter(plot_lon[~exposed_mask], occ_lat[~exposed_mask],
+           s=14, c="black", edgecolors="white", linewidths=0.4,
+           transform=ccrs.PlateCarree(), zorder=4,
+           label=f"Marine record on non-MHW cell ({n_unexposed} records)")
 ax.scatter(plot_lon[exposed_mask], occ_lat[exposed_mask],
-           s=10, c="#08F7FE", edgecolors="black", linewidths=0.3,
+           s=14, c="#08F7FE", edgecolors="black", linewidths=0.3,
            transform=ccrs.PlateCarree(), zorder=5,
-           label=f"On MHW-exposed HEALPix cell ({exposed_mask.sum()} records)")
+           label=f"Marine record on MHW-exposed cell ({n_exposed} records)")
 
 ax.legend(loc="lower left", fontsize=8)
 ax.set_title("Ningaloo Niño 2011 — marine heatwave footprint and GBIF biodiversity overlay\n"
