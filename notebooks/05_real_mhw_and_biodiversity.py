@@ -228,16 +228,32 @@ def latlon_to_healpix_nested(lats: np.ndarray, lons: np.ndarray, nside: int) -> 
 lat_grid, lon_grid = np.meshgrid(sst_2011.lat.values, sst_2011.lon.values, indexing="ij")
 hp_idx = latlon_to_healpix_nested(lat_grid, lon_grid, NSIDE)
 
-mhw_days_hp = np.zeros(NPIX, dtype=np.float64)
-counts_hp = np.zeros(NPIX, dtype=np.int32)
-flat_idx = hp_idx.ravel()
-flat_days = mhw_days_per_cell.ravel().astype(np.float64)
-np.add.at(mhw_days_hp, flat_idx, flat_days)
-np.add.at(counts_hp, flat_idx, 1)
-mhw_days_hp = np.where(counts_hp > 0, mhw_days_hp / np.maximum(counts_hp, 1), np.nan)
+# Build an OISST-derived ocean mask at lat-lon resolution: a lat-lon cell is
+# "sea" if it has finite SST on at least one day of 2011 (OISST writes NaN
+# over land at the product's native sea/land boundary). Aggregating the
+# MHW-day count only over sea cells avoids two pitfalls: (i) coastal HEALPix
+# cells that contain both land and sea lat-lon pixels would otherwise have
+# their MHW signal diluted by the (always zero) land contribution; (ii)
+# HEALPix cells that contain *only* land lat-lon pixels would be tagged as
+# "valid (= 0 MHW days)" instead of "no SST data here", so a downstream
+# ocean-only filter for GBIF records couldn't tell them apart.
+ocean_2d = np.isfinite(sst_2011.isel(time=0).values)        # (lat, lon) bool
 
+mhw_days_hp = np.zeros(NPIX, dtype=np.float64)
+ocean_count_hp = np.zeros(NPIX, dtype=np.int32)
+flat_idx = hp_idx.ravel()
+flat_days = (mhw_days_per_cell.astype(np.float64) * ocean_2d).ravel()
+flat_ocean = ocean_2d.ravel().astype(np.int32)
+np.add.at(mhw_days_hp, flat_idx, flat_days)
+np.add.at(ocean_count_hp, flat_idx, flat_ocean)
+mhw_days_hp = np.where(ocean_count_hp > 0,
+                        mhw_days_hp / np.maximum(ocean_count_hp, 1),
+                        np.nan)
+
+print(f"HEALPix cells with sea coverage in this region: "
+      f"{int((ocean_count_hp > 0).sum())} of {NPIX} (NSIDE={NSIDE})")
 print(f"HEALPix cells with MHW exposure (≥1 day mean): "
-      f"{int(np.nansum(mhw_days_hp > 0))} of {NPIX} (NSIDE={NSIDE})")
+      f"{int(np.nansum(mhw_days_hp > 0))}")
 
 # %% [markdown]
 # ## 5. Visualise the MHW footprint on HEALPix
@@ -296,10 +312,16 @@ from pygbif import occurrences as occ        # noqa: E402  (import here for narr
 
 # GBIF taxonKeys (as of 2026) for the marine taxa we want. These are stable
 # numeric identifiers in the GBIF backbone; sourced via
-# `pygbif.species.name_backbone(name)["usage"]["key"]`.
+# `pygbif.species.name_backbone(name)["usage"]["key"]`. Note: we deliberately
+# drop the phylum-level **Mollusca (key=52)** filter even though it would
+# pull more records — Mollusca includes terrestrial gastropods (land snails)
+# and freshwater bivalves, which contaminate the marine signal with land
+# records. We keep its unambiguously-marine sub-class **Cephalopoda
+# (octopus & squid, key=136)** and let the marine-only ocean-mask step below
+# (drop occurrences whose HEALPix cell has no OISST coverage) catch any
+# remaining inland records.
 MARINE_TAXON_KEYS = {
     "Elasmobranchii (sharks & rays, class)":   121,
-    "Mollusca (phylum)":                       52,
     "Cephalopoda (octopus, squid, class)":    136,
     "Cnidaria (corals, jellies, phylum)":      43,
     "Echinodermata (urchins, stars, phylum)":  50,
@@ -313,7 +335,7 @@ def gbif_marine_occurrences(region: dict, year: int,
 
     Cached as a local CSV so subsequent runs are network-free.
     """
-    cache = CACHE_DIR / f"gbif_marine_taxonkey_{region['lat'].start}_{region['lat'].stop}_{region['lon'].start}_{region['lon'].stop}_{year}.csv"
+    cache = CACHE_DIR / f"gbif_marine_v2_{region['lat'].start}_{region['lat'].stop}_{region['lon'].start}_{region['lon'].stop}_{year}.csv"
     if cache.exists():
         return pd.read_csv(cache)
 
@@ -376,8 +398,27 @@ print(occ_df["class"].value_counts(dropna=False).head(10))
 occ_lat = occ_df["decimalLatitude"].to_numpy()
 occ_lon = occ_df["decimalLongitude"].to_numpy() % 360.0
 occ_hp = latlon_to_healpix_nested(occ_lat, occ_lon, NSIDE)
-occ_df = occ_df.assign(healpix_idx=occ_hp,
-                       mhw_days=np.where(np.isnan(mhw_days_hp[occ_hp]), 0.0, mhw_days_hp[occ_hp]))
+
+# Ocean mask: drop records whose HEALPix cell has no OISST coverage. OISST is
+# a sea-only product, so any cell that received zero lat-lon-pixel
+# contributions during aggregation is on land (or outside the analysis box).
+# This is a more reliable land mask than cartopy coastlines at the ~25 km
+# HEALPix-cell scale: it uses the actual OISST sea/land boundary at the
+# product's native resolution. Inland records here come from two sources —
+# GBIF coordinate fuzzing for protected species, and rounding-to-nearest-grid
+# of low-precision marine records — and both are correctly removed by this
+# mask.
+on_ocean = ~np.isnan(mhw_days_hp[occ_hp])
+n_total_before_mask = len(occ_df)
+n_land_dropped = int(np.sum(~on_ocean))
+print(f"Dropping {n_land_dropped} of {n_total_before_mask} GBIF records "
+      f"that fell on land / outside the analysis region.")
+occ_df = occ_df.iloc[on_ocean].reset_index(drop=True)
+occ_lat = occ_lat[on_ocean]
+occ_lon = occ_lon[on_ocean]
+occ_hp = occ_hp[on_ocean]
+
+occ_df = occ_df.assign(healpix_idx=occ_hp, mhw_days=mhw_days_hp[occ_hp])
 
 mhw_exposure_records = (occ_df["mhw_days"] > 0).sum()
 mhw_exposure_species = occ_df.loc[occ_df["mhw_days"] > 0, "scientificName"].nunique()
