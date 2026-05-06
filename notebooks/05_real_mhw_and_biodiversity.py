@@ -261,33 +261,45 @@ print(f"HEALPix cells with MHW exposure (≥1 day mean): "
 # %%
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import healpix_plot
+from healpix_plot.sampling_grid import ParametrizedSamplingGrid
 
-# Render the HEALPix-aggregated MHW field on a high-resolution lat-lon
-# grid through `hp.ang2pix`, then pcolormesh it on a cartopy axis so
-# coastlines and gridlines come through.
-LATS_HD = np.linspace(-37, -18, 240)
-LONS_HD = np.linspace(105, 122, 240)
-LAT_HD, LON_HD = np.meshgrid(LATS_HD, LONS_HD, indexing="ij")
-theta_hd = np.deg2rad(90.0 - LAT_HD)
-phi_hd = np.deg2rad(LON_HD % 360.0)
-hp_idx_hd = hp.ang2pix(NSIDE, theta_hd, phi_hd, nest=True)
-mhw_field_hd = mhw_days_hp[hp_idx_hd]
-mhw_field_hd = np.where(np.isnan(mhw_field_hd) | (mhw_field_hd == 0), np.nan, mhw_field_hd)
+# Render the HEALPix-aggregated MHW field through `healpix_plot.plot`,
+# the EOPF-DGGS plotting library. It uses `healpix-geo` for HEALPix ↔
+# lon/lat conversions with **WGS84 ellipsoidal** geometry — the same
+# ellipsoidal HEALPix that ESA GRID4EARTH advocates for as the common
+# DGGS for Copernicus EO and Destination Earth. That keeps the figure's
+# substrate consistent with the integration argument the rest of the
+# repository makes.
+LEVEL = int(np.log2(NSIDE))                  # nside=128 → level=7
+healpix_grid_obj = healpix_plot.HealpixGrid(
+    level=LEVEL, indexing_scheme="nested", ellipsoid="WGS84",
+)
+sampling_grid_wa = ParametrizedSamplingGrid.from_bbox(
+    bbox=(105.0, -37.0, 122.0, -18.0), shape=(240, 240),
+)
+mhw_visible = ~np.isnan(mhw_days_hp) & (mhw_days_hp > 0)
+mhw_cell_ids = np.where(mhw_visible)[0].astype("uint64")
+mhw_cell_data = mhw_days_hp[mhw_visible]
 
 fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
 ax.set_extent([105, 122, -37, -18], crs=ccrs.PlateCarree())
-ax.add_feature(cfeature.LAND, facecolor="#dddddd", zorder=1)
-ax.add_feature(cfeature.COASTLINE, linewidth=0.6, zorder=3)
+mappable = healpix_plot.plot(
+    mhw_cell_ids, mhw_cell_data,
+    healpix_grid=healpix_grid_obj,
+    sampling_grid=sampling_grid_wa,
+    ax=ax,
+    cmap="hot_r", vmin=0, vmax=float(np.nanmax(mhw_days_hp)),
+)
+ax.add_feature(cfeature.LAND, facecolor="#dddddd", zorder=4)
+ax.add_feature(cfeature.COASTLINE, linewidth=0.6, zorder=5)
 ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
-cmesh = ax.pcolormesh(LON_HD, LAT_HD, mhw_field_hd,
-                       cmap="hot_r", shading="auto", vmin=0,
-                       vmax=float(np.nanmax(mhw_days_hp)),
-                       transform=ccrs.PlateCarree(), zorder=2)
-plt.colorbar(cmesh, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
+plt.colorbar(mappable, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
              label="MHW-days, Jan–Apr 2011")
 ax.set_title(f"Western Australian Ningaloo Niño 2011 — MHW-days per HEALPix cell\n"
-             f"(NSIDE={NSIDE}, NESTED, anomaly > {ANOMALY_THRESHOLD_C} °C, ≥{MIN_PERSISTENCE_DAYS} consecutive days)",
+             f"(WGS84 ellipsoidal HEALPix, NSIDE={NSIDE}, NESTED, "
+             f"anomaly > {ANOMALY_THRESHOLD_C} °C, ≥{MIN_PERSISTENCE_DAYS} consecutive days)",
              fontsize=10)
 fig.savefig(IMG_DIR / "mhw_healpix_western_australia_2011.png",
             dpi=130, bbox_inches="tight")
@@ -445,21 +457,17 @@ ax.add_feature(cfeature.LAND, facecolor="#dddddd", zorder=1)
 ax.add_feature(cfeature.COASTLINE, linewidth=0.6, zorder=2)
 ax.gridlines(draw_labels=True, linewidth=0.3, alpha=0.5)
 
-# Render the HEALPix MHW field — same approach as the first figure: sample
-# a high-resolution lat-lon mesh through `hp.ang2pix` so each HEALPix cell
-# stamps as a discrete block on the cartopy axis. This is the actual
-# HEALPix-aggregated field, not the OISST lat-lon raster.
-mhw_field_hd_overlay = mhw_days_hp[hp_idx_hd]
-mhw_field_hd_overlay = np.where(np.isnan(mhw_field_hd_overlay)
-                                  | (mhw_field_hd_overlay == 0),
-                                  np.nan, mhw_field_hd_overlay)
-cmesh = ax.pcolormesh(
-    LON_HD, LAT_HD, mhw_field_hd_overlay,
-    cmap="hot_r", shading="auto", vmin=0,
-    vmax=float(np.nanmax(mhw_days_hp)),
-    transform=ccrs.PlateCarree(), zorder=3, alpha=0.85,
+# Render the HEALPix MHW field through `healpix_plot.plot` again, on the
+# same WGS84 ellipsoidal substrate as the first figure.
+mappable = healpix_plot.plot(
+    mhw_cell_ids, mhw_cell_data,
+    healpix_grid=healpix_grid_obj,
+    sampling_grid=sampling_grid_wa,
+    ax=ax,
+    cmap="hot_r", vmin=0, vmax=float(np.nanmax(mhw_days_hp)),
 )
-plt.colorbar(cmesh, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
+mappable.set_alpha(0.85)
+plt.colorbar(mappable, ax=ax, orientation="horizontal", shrink=0.7, pad=0.06,
              label="MHW-days, Jan–Apr 2011 (anomaly > 1.5 °C, ≥5 consecutive days)")
 
 # GBIF occurrences (convert lon back to -180-180 for plotting on PlateCarree).

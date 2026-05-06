@@ -24,8 +24,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # this Dockerfile is the source of truth for reproducible local
 # Docker runs and the GHCR image.
 RUN pip install --no-cache-dir \
-        "numpy>=2.2,<2.3" \
+        "numpy>=2.3" \
         "healpy==1.19.0" \
+        "healpix-plot==0.1.1" \
         "cartopy==0.24.*" \
         "matplotlib==3.10.*" \
         "scipy" \
