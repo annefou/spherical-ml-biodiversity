@@ -15,6 +15,7 @@ project:
     - file: notebooks/03_why_healpix.ipynb
     - file: notebooks/04_mhw_detection_copernicus_marine.ipynb
     - file: notebooks/05_real_mhw_and_biodiversity.ipynb
+    - file: notebooks/06_cross_discipline_transfer.ipynb
 
 site:
   title: "spherical-ml-biodiversity"
