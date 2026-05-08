@@ -44,7 +44,10 @@ Three parallel atomic FORRT chains on Science Live, plus a Research Software nan
   - FORRT Replication Study: <https://w3id.org/sciencelive/np/RAlhXM-tU0wG-SSReXZLiyzQ1sJvEP7_FCqGoXIMmNADs>
   - FORRT Replication Outcome: <https://w3id.org/sciencelive/np/RAoW3q1q1Wyt5DXbFl2PI3woyhuYZuU8HYtJ3m0LyrP9M>
   - CiTO: <https://w3id.org/sciencelive/np/RAUuipi5julhQ_M3pYhg_8UW-m2XmqXBfoHPeRfkNYzoc>
-- **Research Software nanopub** + **Research Synthesis nanopub**. Pending — RS needs the Zenodo concept DOI from the `v0.1.0` release; Synthesis cites the three Outcomes plus the RS.
+- **Research Software nanopub.** Anchors the `v0.1.0` Zenodo concept DOI (`10.5281/zenodo.20082933`) to chain A's PICO question and back-links to all three chain Outcomes. Published 2026-05-08.
+  - <https://w3id.org/sciencelive/np/RA0TakYbwjs9vdc2AXyKxaCj54u5vr8zIrNhebEEskWRc>
+- **Research Synthesis nanopub.** Names the cross-cutting property all three chains exercise — that the HEALPix-NESTED substrate makes sphere-aware ML latitude-invariant, discipline-transferable, and biodiversity-attribution-ready. Published 2026-05-08.
+  - <https://w3id.org/sciencelive/np/RA6r8sefdZHemsSWVZVo7nXdvydNqCm-VfrQpnmmRBrfA>
 
 ## License
 
