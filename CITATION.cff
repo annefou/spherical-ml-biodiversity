@@ -5,7 +5,7 @@ message: >-
   the foundational HEALPix and spherical-CNN references and the
   related dggs-biodiversity-bias repository it follows up.
 type: software
-version: "0.1.0-dev"
+version: "0.1.0"
 authors:
   - given-names: Anne
     family-names: Fouilloux
@@ -13,7 +13,7 @@ authors:
     affiliation: LifeWatch ERIC
 repository-code: "https://github.com/annefou/spherical-ml-biodiversity"
 license: MIT
-date-released: "2026-05-05"
+date-released: "2026-05-08"
 keywords:
   - spherical machine learning
   - geometric deep learning
