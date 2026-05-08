@@ -1,5 +1,11 @@
 # spherical-ml-biodiversity
 
+[![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20082933.svg)](https://doi.org/10.5281/zenodo.20082933)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Jupyter Book](https://img.shields.io/badge/Jupyter%20Book-deployed-blue?logo=jupyter)](https://annefou.github.io/spherical-ml-biodiversity/)
+[![Build & Deploy](https://github.com/annefou/spherical-ml-biodiversity/actions/workflows/jupyter-book.yml/badge.svg)](https://github.com/annefou/spherical-ml-biodiversity/actions/workflows/jupyter-book.yml)
+[![Container](https://img.shields.io/badge/ghcr.io-spherical--ml--biodiversity-blue?logo=docker)](https://github.com/annefou/spherical-ml-biodiversity/pkgs/container/spherical-ml-biodiversity)
+
 > What spherical machine learning is, why it matters for global Earth science, and a worked replication on Copernicus data tied to biodiversity outcomes.
 
 Follow-up to [**dggs-biodiversity-bias**](https://github.com/annefou/dggs-biodiversity-bias) (concept DOI: [10.5281/zenodo.19848749](https://doi.org/10.5281/zenodo.19848749)). That repository established that the **HEALPix family** is the right common DGGS substrate for the integration of biodiversity with high-resolution Copernicus EO and Destination Earth climate models — partly *because the climate-model and spherical-ML sides already live on HEALPix (DeepSphere, foscat, sphere-harmonic transforms)*. This repository **operationalises** the spherical-ML claim with a worked replication and a biodiversity-impact follow-up.
